@@ -1,0 +1,9 @@
+{
+  "name": "teleprompter",
+  "version": "1.0.0",
+  "description": "Simple React teleprompter",
+  "license": "MIT",
+  "scripts": {
+    "test": "echo \"No tests\""
+  }
+}
