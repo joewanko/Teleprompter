@@ -321,20 +321,6 @@ function App() {
               Speed: <span id="speed-display">{speed}</span>
             </div>
           </div>
-          <div>
-            <form
-              action="https://app.teleprompter.com/recorder"
-              target="_blank"
-            >
-              <input
-                id="record-content"
-                ref={recorderRef}
-                type="hidden"
-                name="content"
-              />
-              <button className="record-video-button"> Record Video </button>
-            </form>
-          </div>
         </div>
       </nav>
       <div
