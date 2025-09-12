@@ -4,6 +4,10 @@
   "description": "Simple React teleprompter",
   "license": "MIT",
   "scripts": {
+    "start": "node server.js",
     "test": "echo \"No tests\""
+  },
+  "dependencies": {
+    "express": "^4.21.2"
   }
 }
