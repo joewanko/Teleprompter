@@ -4,12 +4,22 @@ A very simple teleprompter implemented with React.
 
 ## Usage
 
-Install dependencies, build the static files, and start the server:
+Install dependencies:
 
 ```
 npm install
-npm run build
-npm start
 ```
 
-Open http://localhost:3000 in a browser to edit text and start scrolling.
+Start a development server with hot reloading:
+
+```
+npm run dev
+```
+
+Build the static files and serve them:
+
+```
+npm run serve
+```
+
+Open http://localhost:8080 when running the dev server or http://localhost:3000 when serving the built files.
