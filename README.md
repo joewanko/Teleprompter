@@ -4,10 +4,11 @@ A very simple teleprompter implemented with React.
 
 ## Usage
 
-Install dependencies and start the server:
+Install dependencies, build the static files, and start the server:
 
 ```
 npm install
+npm run build
 npm start
 ```
 

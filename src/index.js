@@ -1,3 +1,6 @@
+import React from "react";
+import { createRoot } from "react-dom/client";
+
 function App() {
   const [content, setContent] = React.useState(
     localStorage.getItem("content") || ""
@@ -340,5 +343,5 @@ function App() {
   );
 }
 
-const root = ReactDOM.createRoot(document.getElementById("root"));
+const root = createRoot(document.getElementById("root"));
 root.render(<App />);
