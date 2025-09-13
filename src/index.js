@@ -165,6 +165,124 @@ function App() {
     setExpanded((e) => !e);
   };
 
+  // Named scripts in localStorage
+  const scriptsKey = "teleprompter-scripts";
+  const currentNameKey = "teleprompter-current-name";
+
+  const [scripts, setScripts] = React.useState(() => {
+    try {
+      const v = JSON.parse(localStorage.getItem(scriptsKey));
+      return v && typeof v === "object" ? v : {};
+    } catch (e) {
+      return {};
+    }
+  });
+  const [currentScriptName, setCurrentScriptName] = React.useState(
+    localStorage.getItem(currentNameKey) || ""
+  );
+  const [showSaveDialog, setShowSaveDialog] = React.useState(false);
+  const [showOpenDialog, setShowOpenDialog] = React.useState(false);
+  const [saveName, setSaveName] = React.useState("");
+
+  // Lock page scroll when any dialog or drawer is open
+  React.useEffect(() => {
+    const lock = expanded || showSaveDialog || showOpenDialog;
+    document.body.classList.toggle("noscroll", lock);
+  }, [expanded, showSaveDialog, showOpenDialog]);
+
+  React.useEffect(() => {
+    localStorage.setItem(currentNameKey, currentScriptName);
+  }, [currentScriptName]);
+
+  const buildSnapshot = () => ({
+    content: contentRef.current ? contentRef.current.innerHTML : content,
+    align,
+    flipX,
+    flipY,
+    bgColor,
+    textColor,
+    textSize,
+    margin,
+    speed,
+  });
+
+  const applySnapshot = (snap) => {
+    pause();
+    const newContent = snap.content ?? "";
+    if (contentRef.current) {
+      contentRef.current.innerHTML = newContent;
+    }
+    setContent(newContent);
+    setAlign(snap.align ?? "left");
+    setFlipX(Boolean(snap.flipX));
+    setFlipY(Boolean(snap.flipY));
+    setBgColor(snap.bgColor ?? "#000000");
+    setTextColor(snap.textColor ?? "#ffffff");
+    setTextSize(Number.isFinite(snap.textSize) ? snap.textSize : 58);
+    setMargin(Number.isFinite(snap.margin) ? snap.margin : 5);
+    setSpeed(Number.isFinite(snap.speed) ? snap.speed : 10);
+    window.scrollTo({ top: 0, left: 0, behavior: "smooth" });
+  };
+
+  const deriveDefaultName = () => {
+    if (currentScriptName) return currentScriptName;
+    let text = "";
+    if (contentRef.current) {
+      text = contentRef.current.innerText || "";
+    }
+    const sanitized = (text || "").replace(/\s+/g, " ").trim();
+    return sanitized ? sanitized.slice(0, 50) : "Untitled";
+  };
+
+  const openSaveDialog = () => {
+    setSaveName(deriveDefaultName());
+    setShowSaveDialog(true);
+  };
+
+  const confirmSave = () => {
+    const name = (saveName || "").trim();
+    if (!name) return;
+    const exists = !!scripts[name];
+    if (exists && !window.confirm(`Overwrite \"${name}\"?`)) return;
+    const updated = {
+      ...scripts,
+      [name]: { ...buildSnapshot(), name, updatedAt: Date.now() },
+    };
+    setScripts(updated);
+    localStorage.setItem(scriptsKey, JSON.stringify(updated));
+    setCurrentScriptName(name);
+    setShowSaveDialog(false);
+  };
+
+  const openOpenDialog = () => {
+    setShowOpenDialog(true);
+  };
+
+  const loadScript = (name) => {
+    const snap = scripts[name];
+    if (!snap) return;
+    applySnapshot(snap);
+    setCurrentScriptName(name);
+    setShowOpenDialog(false);
+  };
+
+  const deleteScript = (name) => {
+    if (!scripts[name]) return;
+    if (!window.confirm(`Delete \"${name}\"? This cannot be undone.`)) return;
+    const { [name]: _removed, ...rest } = scripts;
+    setScripts(rest);
+    localStorage.setItem(scriptsKey, JSON.stringify(rest));
+    if (currentScriptName === name) setCurrentScriptName("");
+  };
+
+  const handleClear = () => {
+    pause();
+    if (contentRef.current) {
+      contentRef.current.innerHTML = "";
+    }
+    setContent("");
+  };
+
   React.useEffect(() => {
     const onKeyDown = (e) => {
       if (document.activeElement === contentRef.current) return;
@@ -263,6 +381,51 @@ function App() {
             <path d="m20 25.625-10-10 1.958-1.958L20 21.708l8.042-8.041 1.958 2Z" />
           </svg>
         </button>
+        <button
+          id="open"
+          title="Open saved scripts"
+          onClick={openOpenDialog}
+          style={{
+            width: "auto",
+            height: "32px",
+            padding: "0 10px",
+            border: "1px solid var(--text-color)",
+            borderRadius: "4px",
+            color: "var(--text-color)",
+          }}
+        >
+          Open
+        </button>
+        <button
+          id="save"
+          title="Save as named script"
+          onClick={openSaveDialog}
+          style={{
+            width: "auto",
+            height: "32px",
+            padding: "0 10px",
+            border: "1px solid var(--text-color)",
+            borderRadius: "4px",
+            color: "var(--text-color)",
+          }}
+        >
+          Save
+        </button>
+        <button
+          id="clear"
+          title="Clear the content"
+          onClick={handleClear}
+          style={{
+            width: "auto",
+            height: "32px",
+            padding: "0 10px",
+            border: "1px solid var(--text-color)",
+            borderRadius: "4px",
+            color: "var(--text-color)",
+          }}
+        >
+          Clear
+        </button>
         <div className="drawer">
           <div>
             <input
@@ -326,6 +489,57 @@ function App() {
           </div>
         </div>
       </nav>
+      {showSaveDialog && (
+        <div className="tp-modal" role="dialog" aria-modal="true">
+          <div className="tp-panel">
+            <div className="tp-panel-title">Save Script</div>
+            <label htmlFor="script-name" style={{ marginTop: 10 }}>Script name</label>
+            <input
+              id="script-name"
+              value={saveName}
+              onChange={(e) => setSaveName(e.target.value)}
+              placeholder="Enter a script name"
+              className="tp-input"
+              autoFocus
+            />
+            <div className="tp-row" style={{ marginTop: 16 }}>
+              <button className="tp-btn primary" onClick={confirmSave}>Save</button>
+              <button className="tp-btn" onClick={() => setShowSaveDialog(false)}>Cancel</button>
+            </div>
+          </div>
+        </div>
+      )}
+      {showOpenDialog && (
+        <div className="tp-modal" role="dialog" aria-modal="true">
+          <div className="tp-panel">
+            <div className="tp-panel-title">Open Script</div>
+            <div className="tp-list" role="list">
+              {Object.keys(scripts).length === 0 && (
+                <div className="tp-empty">No saved scripts yet.</div>
+              )}
+              {Object.values(scripts)
+                .sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0))
+                .map((s) => (
+                  <div key={s.name} className="tp-row" role="listitem">
+                    <div className="tp-col">
+                      <div className="tp-name">{s.name}</div>
+                      <div className="tp-muted">
+                        {s.updatedAt ? new Date(s.updatedAt).toLocaleString() : ""}
+                      </div>
+                    </div>
+                    <div className="tp-actions">
+                      <button className="tp-btn primary" onClick={() => loadScript(s.name)}>Load</button>
+                      <button className="tp-btn danger" onClick={() => deleteScript(s.name)}>Delete</button>
+                    </div>
+                  </div>
+                ))}
+            </div>
+            <div className="tp-row" style={{ marginTop: 8 }}>
+              <button className="tp-btn" onClick={() => setShowOpenDialog(false)}>Close</button>
+            </div>
+          </div>
+        </div>
+      )}
       <div
         ref={contentRef}
         className={`content${flipX ? " flipx" : ""}${flipY ? " flipy" : ""}`}

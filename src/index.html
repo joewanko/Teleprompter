@@ -199,6 +199,74 @@
         font-size: 1.1em;
         font-weight: bold;
       }
+      /* Mini dialog styles */
+      .tp-modal {
+        position: fixed;
+        inset: 0;
+        background: rgba(0,0,0,0.5);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 9999;
+      }
+      .tp-panel {
+        background: var(--bg-color);
+        color: var(--text-color);
+        border: 2px solid var(--text-color);
+        border-radius: 8px;
+        min-width: 280px;
+        max-width: 92vw;
+        max-height: 80vh;
+        padding: 16px;
+        box-shadow: rgba(0,0,0,0.5) 0 10px 24px;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+      .tp-panel-title {
+        font-weight: 700;
+        margin-bottom: 4px;
+      }
+      .tp-input {
+        background: transparent;
+        color: var(--text-color);
+        border: 1px solid var(--text-color);
+        border-radius: 4px;
+        padding: 6px 8px;
+      }
+      .tp-list {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        overflow: auto;
+        max-height: 50vh;
+        margin-top: 8px;
+        padding-right: 2px;
+      }
+      .tp-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+      }
+      .tp-col {
+        display: flex;
+        flex-direction: column;
+      }
+      .tp-name { font-weight: 600; }
+      .tp-muted { opacity: 0.7; font-size: 0.9em; }
+      .tp-actions { display: flex; gap: 8px; }
+      .tp-btn {
+        background: transparent;
+        color: var(--text-color);
+        border: 1px solid var(--text-color);
+        border-radius: 4px;
+        padding: 6px 10px;
+        cursor: pointer;
+      }
+      .tp-btn.primary { border-color: #2e90ff; color: #2e90ff; }
+      .tp-btn.danger { border-color: #dc3545; color: #dc3545; }
+      .tp-empty { opacity: 0.7; font-style: italic; }
     </style>
   </head>
   <body>
