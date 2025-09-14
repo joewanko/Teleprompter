@@ -38,7 +38,8 @@
         top: 0;
         left: 0;
         right: 0;
-        height: 60px;
+        min-height: 60px;
+        height: auto;
         padding: 10px;
         background-color: var(--bg-color);
         color: var(--text-color);
@@ -267,6 +268,52 @@
       .tp-btn.primary { border-color: #2e90ff; color: #2e90ff; }
       .tp-btn.danger { border-color: #dc3545; color: #dc3545; }
       .tp-empty { opacity: 0.7; font-style: italic; }
+
+      /* Timer overlay */
+      .timer-overlay {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        width: 100vw;
+        box-sizing: border-box;
+        text-align: center;
+        transform: none;
+        color: var(--text-color);
+        font-weight: 700;
+        letter-spacing: 1px;
+        font-size: 48px;
+        background: var(--bg-color);
+        padding: 10px 16px;
+        border-radius: 0;
+        z-index: 9;
+        user-select: none;
+      }
+      .timer-controls {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .timer-input {
+        background: transparent;
+        color: var(--text-color);
+        border: 1px solid var(--text-color);
+        border-radius: 4px;
+        padding: 4px 6px;
+        width: 88px;
+        text-align: center;
+      }
+
+      /* Nav hide/show helpers */
+      body.nav-hidden nav {
+        display: none;
+      }
+      .nav-reveal-btn {
+        position: fixed;
+        top: 8px;
+        right: 8px;
+        z-index: 11;
+      }
     </style>
   </head>
   <body>

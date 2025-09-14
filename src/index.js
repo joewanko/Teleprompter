@@ -1,5 +1,6 @@
 import React from "react";
 import { createRoot } from "react-dom/client";
+import { createPortal } from "react-dom";
 
 function App() {
   const [content, setContent] = React.useState(
@@ -31,10 +32,44 @@ function App() {
   );
   const [isPlaying, setIsPlaying] = React.useState(false);
   const [expanded, setExpanded] = React.useState(false);
+  const [navHidden, setNavHidden] = React.useState(
+    localStorage.getItem("nav-hidden") === "true"
+  );
+
+  // Timer state
+  const [showTimer, setShowTimer] = React.useState(
+    localStorage.getItem("timer-show") === "true"
+  );
+  const [timerDuration, setTimerDuration] = React.useState(() => {
+    const v = parseInt(localStorage.getItem("timer-duration") || "300", 10);
+    return Number.isFinite(v) ? v : 300; // default 5 minutes
+  });
+  const [timerRemaining, setTimerRemaining] = React.useState(timerDuration);
+  const [timerRunning, setTimerRunning] = React.useState(false);
+  const [timerWindowOpen, setTimerWindowOpen] = React.useState(false);
+  const [timerFontSize, setTimerFontSize] = React.useState(() => {
+    const v = parseInt(localStorage.getItem("timer-font-size") || "48", 10);
+    return Number.isFinite(v) ? v : 48;
+  });
+  const [timerColor, setTimerColor] = React.useState(
+    localStorage.getItem("timer-color") || "#ffff00"
+  );
+  const [timerInput, setTimerInput] = React.useState("")
+  const timerIntervalRef = React.useRef();
+  const timerStartRef = React.useRef(null);
+  const childWindowRef = React.useRef(null);
 
   const timeoutRef = React.useRef();
   const contentRef = React.useRef();
   const recorderRef = React.useRef();
+  const smallBtnStyle = {
+    width: "auto",
+    height: "32px",
+    padding: "0 10px",
+    border: "1px solid var(--text-color)",
+    borderRadius: "4px",
+    color: "var(--text-color)",
+  };
 
   React.useEffect(() => {
     if (contentRef.current) {
@@ -54,35 +89,42 @@ function App() {
   }, [bgColor, textColor, textSize, margin, align]);
 
   React.useEffect(() => {
+    // Persist commonly changed settings in one place
     localStorage.setItem("content", content);
-    if (recorderRef.current) {
+    localStorage.setItem("align", align);
+    localStorage.setItem("flipx", flipX);
+    localStorage.setItem("flipy", flipY);
+    localStorage.setItem("bg-color", bgColor);
+    localStorage.setItem("text-color", textColor);
+    localStorage.setItem("text-size", textSize + "px");
+    localStorage.setItem("margin", margin + "%");
+    localStorage.setItem("speed", speed);
+    localStorage.setItem("timer-show", showTimer);
+    localStorage.setItem("timer-duration", String(timerDuration));
+    localStorage.setItem("timer-font-size", String(timerFontSize));
+    localStorage.setItem("timer-color", timerColor);
+    if (recorderRef.current && recorderRef.current.value !== content) {
       recorderRef.current.value = content;
     }
-  }, [content]);
+  }, [
+    content,
+    align,
+    flipX,
+    flipY,
+    bgColor,
+    textColor,
+    textSize,
+    margin,
+    speed,
+    showTimer,
+    timerDuration,
+    timerFontSize,
+    timerColor,
+  ]);
   React.useEffect(() => {
-    localStorage.setItem("align", align);
-  }, [align]);
-  React.useEffect(() => {
-    localStorage.setItem("flipx", flipX);
-  }, [flipX]);
-  React.useEffect(() => {
-    localStorage.setItem("flipy", flipY);
-  }, [flipY]);
-  React.useEffect(() => {
-    localStorage.setItem("bg-color", bgColor);
-  }, [bgColor]);
-  React.useEffect(() => {
-    localStorage.setItem("text-color", textColor);
-  }, [textColor]);
-  React.useEffect(() => {
-    localStorage.setItem("text-size", textSize + "px");
-  }, [textSize]);
-  React.useEffect(() => {
-    localStorage.setItem("margin", margin + "%");
-  }, [margin]);
-  React.useEffect(() => {
-    localStorage.setItem("speed", speed);
-  }, [speed]);
+    localStorage.setItem("nav-hidden", navHidden);
+    document.body.classList.toggle("nav-hidden", navHidden);
+  }, [navHidden]);
 
   React.useEffect(() => {
     document.body.classList.toggle("playing", isPlaying);
@@ -97,6 +139,7 @@ function App() {
       window.scrollBy(0, -1);
       if (window.scrollY === 0) {
         pause();
+        pauseTimer();
         window.scrollTo({
           top: document.body.scrollHeight - window.innerHeight,
           left: 0,
@@ -108,6 +151,7 @@ function App() {
       window.scrollBy(0, 1);
       if (window.scrollY + window.innerHeight >= document.body.scrollHeight) {
         pause();
+        pauseTimer();
         window.scrollTo({ top: 0, left: 0, behavior: "smooth" });
         return;
       }
@@ -130,6 +174,15 @@ function App() {
       pause();
     } else {
       play();
+    }
+  };
+
+  // Toggle teleprompter and timer together
+  const togglePlayAndTimer = () => {
+    handlePlayPause();
+    if (showTimer) {
+      if (timerRunning) pauseTimer();
+      else startTimer();
     }
   };
 
@@ -164,6 +217,147 @@ function App() {
   const handleExpand = () => {
     setExpanded((e) => !e);
   };
+
+  // Timer helpers
+  const pad2 = (n) => String(Math.max(0, Math.floor(n))).padStart(2, "0");
+  const formatTime = (totalSeconds) => {
+    const neg = totalSeconds < 0;
+    const sAbs = Math.floor(Math.abs(totalSeconds));
+    const m = Math.floor(sAbs / 60);
+    const sec = sAbs % 60;
+    const base = `${pad2(m)}:${pad2(sec)}`;
+    return neg ? `+${base}` : base;
+  };
+
+  const stopTimerInterval = () => {
+    if (timerIntervalRef.current) {
+      clearInterval(timerIntervalRef.current);
+      timerIntervalRef.current = undefined;
+    }
+  };
+
+  const startTimer = () => {
+    if (timerRunning) return;
+    setTimerRunning(true);
+    const start = Date.now();
+    const baseRemaining = timerRemaining;
+    timerStartRef.current = start;
+    stopTimerInterval();
+    timerIntervalRef.current = setInterval(() => {
+      const elapsed = Math.floor((Date.now() - start) / 1000);
+      const next = baseRemaining - elapsed;
+      setTimerRemaining(next);
+    }, 200);
+  };
+
+  const pauseTimer = () => {
+    if (!timerRunning) return;
+    setTimerRunning(false);
+    stopTimerInterval();
+  };
+
+  const resetTimer = () => {
+    // Pause teleprompter and timer
+    pause();
+    pauseTimer();
+    // Reset timer to full duration
+    setTimerRemaining(timerDuration);
+    // Scroll back to the top
+    window.scrollTo({ top: 0, left: 0, behavior: "smooth" });
+  };
+
+  const setTimerFromInput = (value) => {
+    // value expected as MM:SS or M:SS (allow leading '+')
+    value = String(value || "").trim().replace(/^\+/, "");
+    const m = value.split(":");
+    if (m.length !== 2) return;
+    const mins = parseInt(m[0], 10);
+    const secs = parseInt(m[1], 10);
+    if (!Number.isFinite(mins) || !Number.isFinite(secs)) return;
+    const total = Math.max(0, mins * 60 + secs);
+    setTimerDuration(total);
+    setTimerRemaining(total);
+  };
+
+  // Keep the editable timer input in sync with remaining time when it changes externally
+  React.useEffect(() => {
+    setTimerInput(formatTime(timerRemaining));
+  }, [timerRemaining]);
+
+  // Close child window if open when hiding timer
+  React.useEffect(() => {
+    if (!showTimer && childWindowRef.current && !childWindowRef.current.closed) {
+      childWindowRef.current.close();
+    }
+  }, [showTimer]);
+
+  // Clean up on unmount
+  React.useEffect(() => {
+    return () => {
+      stopTimerInterval();
+      if (childWindowRef.current && !childWindowRef.current.closed) {
+        childWindowRef.current.close();
+      }
+    };
+  }, []);
+
+  const openTimerWindow = () => {
+    if (childWindowRef.current && !childWindowRef.current.closed) return;
+    const w = window.open("", "TeleprompterTimer", "width=420,height=200");
+    if (!w) return;
+    w.document.title = "Timer";
+    // Basic styles and variables to match theme
+    const style = w.document.createElement("style");
+    style.textContent = `
+      :root { --bg-color: ${bgColor}; --text-color: ${textColor}; }
+      html, body { height: 100%; margin: 0; background: var(--bg-color); color: var(--text-color); }
+      body { display: flex; align-items: center; justify-content: center; }
+      .popup-timer { font-size: ${timerFontSize}px; color: ${timerColor}; font-weight: 700; letter-spacing: 2px; }
+    `;
+    w.document.head.appendChild(style);
+    setTimerWindowOpen(true);
+    childWindowRef.current = w;
+    const onClose = () => setTimerWindowOpen(false);
+    w.addEventListener("beforeunload", onClose);
+  };
+
+  const closeTimerWindow = () => {
+    if (childWindowRef.current && !childWindowRef.current.closed) {
+      childWindowRef.current.close();
+    }
+    setTimerWindowOpen(false);
+  };
+
+  const ChildWindowPortal = ({ children }) => {
+    const [container, setContainer] = React.useState(null);
+    React.useEffect(() => {
+      if (!childWindowRef.current || childWindowRef.current.closed) return;
+      const el = childWindowRef.current.document.createElement("div");
+      childWindowRef.current.document.body.appendChild(el);
+      setContainer(el);
+      return () => {
+        if (!childWindowRef.current || childWindowRef.current.closed) return;
+        el.remove();
+      };
+    }, [timerWindowOpen]);
+    if (!container) return null;
+    return createPortal(children, container);
+  };
+
+  // Keep popup window theme in sync
+  React.useEffect(() => {
+    if (!childWindowRef.current || childWindowRef.current.closed) return;
+    const doc = childWindowRef.current.document;
+    doc.documentElement.style.setProperty("--bg-color", bgColor);
+    doc.documentElement.style.setProperty("--text-color", textColor);
+    doc.body.style.background = "var(--bg-color)";
+    doc.body.style.color = "var(--text-color)";
+    const el = doc.querySelector('.popup-timer');
+    if (el) {
+      el.style.fontSize = `${timerFontSize}px`;
+      el.style.color = timerColor;
+    }
+  }, [bgColor, textColor, timerFontSize, timerColor, timerWindowOpen]);
 
   // Named scripts in localStorage
   const scriptsKey = "teleprompter-scripts";
@@ -204,10 +398,16 @@ function App() {
     textSize,
     margin,
     speed,
+    // Timer settings saved per script
+    showTimer,
+    timerDuration,
+    timerFontSize,
+    timerColor,
   });
 
   const applySnapshot = (snap) => {
     pause();
+    pauseTimer();
     const newContent = snap.content ?? "";
     if (contentRef.current) {
       contentRef.current.innerHTML = newContent;
@@ -221,6 +421,13 @@ function App() {
     setTextSize(Number.isFinite(snap.textSize) ? snap.textSize : 58);
     setMargin(Number.isFinite(snap.margin) ? snap.margin : 5);
     setSpeed(Number.isFinite(snap.speed) ? snap.speed : 10);
+    // Apply timer settings from script (defaulting to existing if absent)
+    setShowTimer(typeof snap.showTimer === "boolean" ? snap.showTimer : showTimer);
+    const duration = Number.isFinite(snap.timerDuration) ? snap.timerDuration : timerDuration;
+    setTimerDuration(duration);
+    setTimerRemaining(duration);
+    setTimerFontSize(Number.isFinite(snap.timerFontSize) ? snap.timerFontSize : timerFontSize);
+    setTimerColor(snap.timerColor ?? timerColor);
     window.scrollTo({ top: 0, left: 0, behavior: "smooth" });
   };
 
@@ -277,6 +484,7 @@ function App() {
 
   const handleClear = () => {
     pause();
+    pauseTimer();
     if (contentRef.current) {
       contentRef.current.innerHTML = "";
     }
@@ -285,10 +493,16 @@ function App() {
 
   React.useEffect(() => {
     const onKeyDown = (e) => {
-      if (document.activeElement === contentRef.current) return;
+      const ae = document.activeElement;
+      if (
+        ae === contentRef.current ||
+        (ae && (ae.isContentEditable || ["INPUT","TEXTAREA","SELECT","BUTTON"].includes(ae.tagName)))
+      ) {
+        return;
+      }
       if (e.code === "Space") {
         e.preventDefault();
-        handlePlayPause();
+        togglePlayAndTimer();
       } else if (e.code === "ArrowDown") {
         e.preventDefault();
         setSpeed((s) => Math.max(1, s - 1));
@@ -299,15 +513,25 @@ function App() {
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [handlePlayPause]);
+  }, [togglePlayAndTimer]);
 
   return (
     <div>
       <nav className={expanded ? "expanded" : ""}>
+        {/* Reset (left of Play/Pause) */}
+        <button
+          id="reset"
+          title="Reset (scroll to top; reset timer)"
+          onClick={resetTimer}
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" height="40" width="40" viewBox="0 0 24 24">
+            <path d="M17.65 6.35A7.95 7.95 0 0 0 12 4 8 8 0 1 0 20 12h-2A6 6 0 1 1 12 6a5.96 5.96 0 0 1 4.24 1.76L13 11h7V4l-2.35 2.35z" />
+          </svg>
+        </button>
         <button
           id="play-pause"
           title="Play / Pause [Space]"
-          onClick={handlePlayPause}
+          onClick={togglePlayAndTimer}
         >
           <svg
             id="play"
@@ -385,14 +609,7 @@ function App() {
           id="open"
           title="Open saved scripts"
           onClick={openOpenDialog}
-          style={{
-            width: "auto",
-            height: "32px",
-            padding: "0 10px",
-            border: "1px solid var(--text-color)",
-            borderRadius: "4px",
-            color: "var(--text-color)",
-          }}
+          style={smallBtnStyle}
         >
           Open
         </button>
@@ -400,14 +617,7 @@ function App() {
           id="save"
           title="Save as named script"
           onClick={openSaveDialog}
-          style={{
-            width: "auto",
-            height: "32px",
-            padding: "0 10px",
-            border: "1px solid var(--text-color)",
-            borderRadius: "4px",
-            color: "var(--text-color)",
-          }}
+          style={smallBtnStyle}
         >
           Save
         </button>
@@ -415,17 +625,19 @@ function App() {
           id="clear"
           title="Clear the content"
           onClick={handleClear}
-          style={{
-            width: "auto",
-            height: "32px",
-            padding: "0 10px",
-            border: "1px solid var(--text-color)",
-            borderRadius: "4px",
-            color: "var(--text-color)",
-          }}
+          style={smallBtnStyle}
         >
           Clear
         </button>
+        <button
+          id="hide-nav"
+          title={navHidden ? "Show Nav" : "Hide Nav"}
+          onClick={() => setNavHidden((v) => !v)}
+          style={smallBtnStyle}
+        >
+          {navHidden ? "Show Nav" : "Hide Nav"}
+        </button>
+        {/* Teleprompter controls continue... */}
         <div className="drawer">
           <div>
             <input
@@ -488,7 +700,98 @@ function App() {
             </div>
           </div>
         </div>
+        {/* Timer controls (second line) */}
+        <div className="timer-controls" style={{ marginLeft: 8, flexBasis: "100%" }}>
+          <button
+            id="timer-toggle"
+            title="Toggle timer visibility"
+            onClick={() => setShowTimer((v) => !v)}
+            style={smallBtnStyle}
+          >
+            {showTimer ? "Hide Timer" : "Show Timer"}
+          </button>
+          <input
+            className="timer-input"
+            aria-label="Timer (MM:SS)"
+            title="Timer (MM:SS)"
+            value={timerInput}
+            onChange={(e) => !timerRunning && setTimerInput(e.target.value)}
+            onBlur={() => !timerRunning && setTimerFromInput(timerInput)}
+            onKeyDown={(e) => {
+              if (timerRunning) return;
+              if (e.key === "Enter") {
+                e.preventDefault();
+                setTimerFromInput(timerInput);
+              } else if (e.key === "Escape") {
+                e.preventDefault();
+                setTimerInput(formatTime(timerRemaining));
+              }
+            }}
+            disabled={timerRunning || !showTimer}
+          />
+          <input
+            type="color"
+            aria-label="Timer color"
+            title="Timer color"
+            value={timerColor}
+            onChange={(e) => setTimerColor(e.target.value)}
+            disabled={!showTimer}
+          />
+          <div style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+            <input
+              type="range"
+              min="24"
+              max="120"
+              step="1"
+              value={timerFontSize}
+              onChange={(e) => setTimerFontSize(parseInt(e.target.value, 10))}
+              disabled={!showTimer}
+            />
+            <div className="disable-select" title="Timer size">
+              {timerFontSize}px
+            </div>
+          </div>
+          {!timerWindowOpen ? (
+            <button className="tp-btn" style={smallBtnStyle} onClick={openTimerWindow} disabled={!showTimer}>
+              Pop Out
+            </button>
+          ) : (
+            <button className="tp-btn" style={smallBtnStyle} onClick={closeTimerWindow}>
+              Close Window
+            </button>
+          )}
+        </div>
       </nav>
+      {navHidden && (
+        <button
+          className="nav-reveal-btn tp-btn"
+          onClick={() => setNavHidden(false)}
+          title="Show Nav"
+        >
+          Show Nav
+        </button>
+      )}
+      {/* Timer displays */}
+      {showTimer && !timerWindowOpen && (
+        <div
+          className="timer-overlay"
+          aria-live="polite"
+          style={{ fontSize: `${timerFontSize}px`, color: timerColor }}
+        >
+          {formatTime(timerRemaining)}
+        </div>
+      )}
+      {showTimer && timerWindowOpen && childWindowRef.current && !childWindowRef.current.closed && (
+        <ChildWindowPortal>
+          <div
+            className="popup-timer"
+            aria-live="polite"
+            style={{ fontSize: `${timerFontSize}px`, color: timerColor }}
+          >
+            {formatTime(timerRemaining)}
+          </div>
+        </ChildWindowPortal>
+      )}
       {showSaveDialog && (
         <div className="tp-modal" role="dialog" aria-modal="true">
           <div className="tp-panel">

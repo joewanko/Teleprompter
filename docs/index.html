@@ -31,7 +31,8 @@
         top: 0;
         left: 0;
         right: 0;
-        height: 60px;
+        min-height: 60px;
+        height: auto;
         padding: 10px;
         background-color: var(--bg-color);
         color: var(--text-color);
@@ -192,7 +193,7 @@
         font-size: 1.1em;
         font-weight: bold;
       }
-      /* Mini dialog styles (duplicated from src for docs build) */
+      /* Mini dialog styles */
       .tp-modal {
         position: fixed;
         inset: 0;
@@ -216,7 +217,10 @@
         flex-direction: column;
         gap: 8px;
       }
-      .tp-panel-title { font-weight: 700; margin-bottom: 4px; }
+      .tp-panel-title {
+        font-weight: 700;
+        margin-bottom: 4px;
+      }
       .tp-input {
         background: transparent;
         color: var(--text-color);
@@ -233,8 +237,16 @@
         margin-top: 8px;
         padding-right: 2px;
       }
-      .tp-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-      .tp-col { display: flex; flex-direction: column; }
+      .tp-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+      }
+      .tp-col {
+        display: flex;
+        flex-direction: column;
+      }
       .tp-name { font-weight: 600; }
       .tp-muted { opacity: 0.7; font-size: 0.9em; }
       .tp-actions { display: flex; gap: 8px; }
@@ -249,4 +261,49 @@
       .tp-btn.primary { border-color: #2e90ff; color: #2e90ff; }
       .tp-btn.danger { border-color: #dc3545; color: #dc3545; }
       .tp-empty { opacity: 0.7; font-style: italic; }
-      </style><script defer="defer" src="bundle.js"></script></head><body><div id="root"></div></body></html>
+
+      /* Timer overlay */
+      .timer-overlay {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        width: 100vw;
+        box-sizing: border-box;
+        text-align: center;
+        transform: none;
+        color: var(--text-color);
+        font-weight: 700;
+        letter-spacing: 1px;
+        font-size: 48px;
+        background: var(--bg-color);
+        padding: 10px 16px;
+        border-radius: 0;
+        z-index: 9;
+        user-select: none;
+      }
+      .timer-controls {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .timer-input {
+        background: transparent;
+        color: var(--text-color);
+        border: 1px solid var(--text-color);
+        border-radius: 4px;
+        padding: 4px 6px;
+        width: 88px;
+        text-align: center;
+      }
+
+      /* Nav hide/show helpers */
+      body.nav-hidden nav {
+        display: none;
+      }
+      .nav-reveal-btn {
+        position: fixed;
+        top: 8px;
+        right: 8px;
+        z-index: 11;
+      }</style><script defer="defer" src="bundle.js"></script></head><body><div id="root"></div></body></html>
