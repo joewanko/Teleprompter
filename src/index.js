@@ -37,9 +37,11 @@ function App() {
   );
 
   // Timer state
-  const [showTimer, setShowTimer] = React.useState(
-    localStorage.getItem("timer-show") === "true"
-  );
+  // Default to showing the timer when no preference is stored yet
+  const [showTimer, setShowTimer] = React.useState(() => {
+    const v = localStorage.getItem("timer-show");
+    return v === null ? true : v === "true";
+  });
   const [timerDuration, setTimerDuration] = React.useState(() => {
     const v = parseInt(localStorage.getItem("timer-duration") || "300", 10);
     return Number.isFinite(v) ? v : 300; // default 5 minutes
@@ -279,6 +281,17 @@ function App() {
     setTimerRemaining(total);
   };
 
+  const parseTimerString = (value) => {
+    // Returns seconds when valid, otherwise undefined
+    value = String(value || "").trim().replace(/^\+/, "");
+    const parts = value.split(":");
+    if (parts.length !== 2) return undefined;
+    const mins = parseInt(parts[0], 10);
+    const secs = parseInt(parts[1], 10);
+    if (!Number.isFinite(mins) || !Number.isFinite(secs)) return undefined;
+    return Math.max(0, mins * 60 + secs);
+  };
+
   // Keep the editable timer input in sync with remaining time when it changes externally
   React.useEffect(() => {
     setTimerInput(formatTime(timerRemaining));
@@ -388,22 +401,29 @@ function App() {
     localStorage.setItem(currentNameKey, currentScriptName);
   }, [currentScriptName]);
 
-  const buildSnapshot = () => ({
-    content: contentRef.current ? contentRef.current.innerHTML : content,
-    align,
-    flipX,
-    flipY,
-    bgColor,
-    textColor,
-    textSize,
-    margin,
-    speed,
-    // Timer settings saved per script
-    showTimer,
-    timerDuration,
-    timerFontSize,
-    timerColor,
-  });
+  const buildSnapshot = () => {
+    // Ensure timer duration reflects the current input if it's been edited
+    const parsedDuration = parseTimerString(timerInput);
+    const durationToSave = Number.isFinite(parsedDuration)
+      ? parsedDuration
+      : timerDuration;
+    return {
+      content: contentRef.current ? contentRef.current.innerHTML : content,
+      align,
+      flipX,
+      flipY,
+      bgColor,
+      textColor,
+      textSize,
+      margin,
+      speed,
+      // Timer settings saved per script
+      showTimer,
+      timerDuration: durationToSave,
+      timerFontSize,
+      timerColor,
+    };
+  };
 
   const applySnapshot = (snap) => {
     pause();

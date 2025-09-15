@@ -2,6 +2,10 @@
 
 A very simple teleprompter implemented with React.
 
+## Live
+
+Try it here: https://joewanko.github.io/Teleprompter/
+
 ## Usage
 
 Install dependencies:
