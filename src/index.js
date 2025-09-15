@@ -631,9 +631,9 @@ function App() {
         </button>
         <button
           id="hide-nav"
+          className="nav-reveal-btn tp-btn"
           title={navHidden ? "Show Nav" : "Hide Nav"}
           onClick={() => setNavHidden((v) => !v)}
-          style={smallBtnStyle}
         >
           {navHidden ? "Show Nav" : "Hide Nav"}
         </button>
@@ -701,7 +701,10 @@ function App() {
           </div>
         </div>
         {/* Timer controls (second line) */}
-        <div className="timer-controls" style={{ marginLeft: 8, flexBasis: "100%" }}>
+        <div
+          className="timer-controls"
+          style={{ marginLeft: 0, flexBasis: "100%", justifyContent: "center" }}
+        >
           <button
             id="timer-toggle"
             title="Toggle timer visibility"
