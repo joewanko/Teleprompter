@@ -511,6 +511,30 @@ function App() {
     setContent("");
   };
 
+  const handlePastePlain = (e) => {
+    if (!e.clipboardData) return;
+    e.preventDefault();
+    const text = e.clipboardData.getData("text/plain");
+    if (text == null) return;
+    const selection = window.getSelection();
+    if (!selection || selection.rangeCount === 0) return;
+    const range = selection.getRangeAt(0);
+    // Remove any selected content
+    range.deleteContents();
+    // Insert plain text with <br> for newlines
+    const lines = String(text).split(/\r\n|\n|\r/);
+    const frag = document.createDocumentFragment();
+    lines.forEach((line, idx) => {
+      frag.appendChild(document.createTextNode(line));
+      if (idx !== lines.length - 1) frag.appendChild(document.createElement("br"));
+    });
+    range.insertNode(frag);
+    // Move caret to end of inserted content
+    selection.collapseToEnd();
+    // Sync state with resulting HTML
+    setContent(e.currentTarget.innerHTML);
+  };
+
   React.useEffect(() => {
     const onKeyDown = (e) => {
       const ae = document.activeElement;
@@ -872,6 +896,7 @@ function App() {
         spellCheck="false"
         contentEditable={!isPlaying}
         suppressContentEditableWarning
+        onPaste={handlePastePlain}
         onInput={(e) => setContent(e.currentTarget.innerHTML)}
       />
       <div
