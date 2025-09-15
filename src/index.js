@@ -60,6 +60,7 @@ function App() {
   const timerIntervalRef = React.useRef();
   const timerStartRef = React.useRef(null);
   const childWindowRef = React.useRef(null);
+  const [childWindowSize, setChildWindowSize] = React.useState({ width: 420, height: 200 });
 
   const timeoutRef = React.useRef();
   const contentRef = React.useRef();
@@ -71,6 +72,7 @@ function App() {
     border: "1px solid var(--text-color)",
     borderRadius: "4px",
     color: "var(--text-color)",
+    whiteSpace: "nowrap",
   };
 
   React.useEffect(() => {
@@ -180,8 +182,24 @@ function App() {
   };
 
   // Toggle teleprompter and timer together
+  // Determine if there is any actual script text present
+  const hasScript = React.useMemo(() => {
+    try {
+      const tmp = document.createElement("div");
+      tmp.innerHTML = content || "";
+      const text = (tmp.innerText || "").replace(/\s+/g, "");
+      return text.length > 0;
+    } catch {
+      return Boolean((content || "").trim());
+    }
+  }, [content]);
+
   const togglePlayAndTimer = () => {
-    handlePlayPause();
+    // Only toggle teleprompter play/pause when a script exists.
+    if (hasScript) {
+      handlePlayPause();
+    }
+    // Timer can run in both modes.
     if (showTimer) {
       if (timerRunning) pauseTimer();
       else startTimer();
@@ -321,16 +339,29 @@ function App() {
     w.document.title = "Timer";
     // Basic styles and variables to match theme
     const style = w.document.createElement("style");
+    // Mirror the parent's font stack for visual consistency
+    const parentFont = window.getComputedStyle(document.body).fontFamily || 'sans-serif';
     style.textContent = `
       :root { --bg-color: ${bgColor}; --text-color: ${textColor}; }
       html, body { height: 100%; margin: 0; background: var(--bg-color); color: var(--text-color); }
-      body { display: flex; align-items: center; justify-content: center; }
-      .popup-timer { font-size: ${timerFontSize}px; color: ${timerColor}; font-weight: 700; letter-spacing: 2px; }
+      body { display: flex; align-items: center; justify-content: center; font-family: ${parentFont}; }
+      .popup-timer { color: ${timerColor}; font-weight: 700; letter-spacing: 1px; font-variant-numeric: tabular-nums; }
     `;
     w.document.head.appendChild(style);
     setTimerWindowOpen(true);
     childWindowRef.current = w;
-    const onClose = () => setTimerWindowOpen(false);
+    // Track size for responsive font scaling
+    const updateSize = () => {
+      try {
+        setChildWindowSize({ width: w.innerWidth, height: w.innerHeight });
+      } catch {}
+    };
+    updateSize();
+    w.addEventListener("resize", updateSize);
+    const onClose = () => {
+      try { w.removeEventListener("resize", updateSize); } catch {}
+      setTimerWindowOpen(false);
+    };
     w.addEventListener("beforeunload", onClose);
   };
 
@@ -357,6 +388,17 @@ function App() {
     return createPortal(children, container);
   };
 
+  // Compute responsive font size for the pop-out window based on its size
+  const computePopoutFontSize = React.useCallback(() => {
+    if (!childWindowRef.current || childWindowRef.current.closed) return timerFontSize;
+    const baseW = 420;
+    const baseH = 200;
+    const w = childWindowSize.width || childWindowRef.current.innerWidth || baseW;
+    const h = childWindowSize.height || childWindowRef.current.innerHeight || baseH;
+    const factor = Math.min(w / baseW, h / baseH);
+    return Math.max(12, Math.round(timerFontSize * factor));
+  }, [childWindowSize.width, childWindowSize.height, timerFontSize]);
+
   // Keep popup window theme in sync
   React.useEffect(() => {
     if (!childWindowRef.current || childWindowRef.current.closed) return;
@@ -365,12 +407,18 @@ function App() {
     doc.documentElement.style.setProperty("--text-color", textColor);
     doc.body.style.background = "var(--bg-color)";
     doc.body.style.color = "var(--text-color)";
+    try {
+      const parentFont = window.getComputedStyle(document.body).fontFamily || 'sans-serif';
+      doc.body.style.fontFamily = parentFont;
+    } catch {}
     const el = doc.querySelector('.popup-timer');
     if (el) {
-      el.style.fontSize = `${timerFontSize}px`;
+      el.style.fontSize = `${computePopoutFontSize()}px`;
       el.style.color = timerColor;
+      el.style.letterSpacing = '1px';
+      el.style.fontVariantNumeric = 'tabular-nums';
     }
-  }, [bgColor, textColor, timerFontSize, timerColor, timerWindowOpen]);
+  }, [bgColor, textColor, timerFontSize, timerColor, timerWindowOpen, computePopoutFontSize]);
 
   // Named scripts in localStorage
   const scriptsKey = "teleprompter-scripts";
@@ -390,12 +438,15 @@ function App() {
   const [showSaveDialog, setShowSaveDialog] = React.useState(false);
   const [showOpenDialog, setShowOpenDialog] = React.useState(false);
   const [saveName, setSaveName] = React.useState("");
+  const importInputRef = React.useRef(null);
+  const [showEditor, setShowEditor] = React.useState(false);
+  const editorRef = React.useRef(null);
 
   // Lock page scroll when any dialog or drawer is open
   React.useEffect(() => {
-    const lock = expanded || showSaveDialog || showOpenDialog;
+    const lock = expanded || showSaveDialog || showOpenDialog || showEditor;
     document.body.classList.toggle("noscroll", lock);
-  }, [expanded, showSaveDialog, showOpenDialog]);
+  }, [expanded, showSaveDialog, showOpenDialog, showEditor]);
 
   React.useEffect(() => {
     localStorage.setItem(currentNameKey, currentScriptName);
@@ -485,6 +536,92 @@ function App() {
     setShowOpenDialog(true);
   };
 
+  const exportScripts = () => {
+    try {
+      const payload = {
+        type: "teleprompter-scripts",
+        version: 1,
+        exportedAt: Date.now(),
+        scripts,
+      };
+      const json = JSON.stringify(payload, null, 2);
+      const blob = new Blob([json], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      const ts = new Date().toISOString().replace(/[:.]/g, "-");
+      a.href = url;
+      a.download = `teleprompter-scripts-${ts}.json`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      console.error(e);
+      window.alert("Failed to export scripts.");
+    }
+  };
+
+  const openImportPicker = () => {
+    if (importInputRef.current) {
+      importInputRef.current.value = ""; // reset so same file can be chosen
+      importInputRef.current.click();
+    }
+  };
+
+  const handleImportFile = async (e) => {
+    const file = e.target.files && e.target.files[0];
+    if (!file) return;
+    try {
+      const text = await file.text();
+      const data = JSON.parse(text);
+      let incoming = {};
+      if (data && typeof data === "object") {
+        if (data.scripts && typeof data.scripts === "object") {
+          incoming = data.scripts;
+        } else {
+          incoming = data;
+        }
+      }
+      if (!incoming || typeof incoming !== "object") {
+        window.alert("Invalid import file.");
+        return;
+      }
+      // Normalize to plain object of name -> script
+      // If it's an array, try mapping by .name
+      if (Array.isArray(incoming)) {
+        const mapped = {};
+        for (const item of incoming) {
+          if (item && typeof item === "object" && item.name) {
+            mapped[item.name] = item;
+          }
+        }
+        incoming = mapped;
+      }
+      const importNames = Object.keys(incoming);
+      if (importNames.length === 0) {
+        window.alert("No scripts found in file.");
+        return;
+      }
+      const collisions = importNames.filter((n) => Object.prototype.hasOwnProperty.call(scripts, n));
+      if (collisions.length > 0) {
+        const ok = window.confirm(`Import will overwrite ${collisions.length} script(s). Continue?`);
+        if (!ok) return;
+      }
+      const updated = { ...scripts };
+      for (const name of importNames) {
+        const snap = incoming[name];
+        if (!snap || typeof snap !== "object") continue;
+        updated[name] = { ...snap, name: snap.name || name };
+      }
+      setScripts(updated);
+      localStorage.setItem(scriptsKey, JSON.stringify(updated));
+      window.alert(`Imported ${importNames.length} script(s).`);
+    } catch (err) {
+      console.error(err);
+      window.alert("Failed to import file. Ensure it is valid JSON.");
+    }
+  };
+
   const loadScript = (name) => {
     const snap = scripts[name];
     if (!snap) return;
@@ -511,6 +648,44 @@ function App() {
     setContent("");
   };
 
+  const openEditor = () => {
+    pause();
+    pauseTimer();
+    setShowEditor(true);
+    // Initialize editor content after modal mounts
+    setTimeout(() => {
+      if (editorRef.current) {
+        editorRef.current.innerHTML = contentRef.current
+          ? contentRef.current.innerHTML
+          : content;
+        // place caret at end
+        try {
+          const range = document.createRange();
+          const sel = window.getSelection();
+          range.selectNodeContents(editorRef.current);
+          range.collapse(false);
+          sel.removeAllRanges();
+          sel.addRange(range);
+        } catch {}
+      }
+    }, 0);
+  };
+
+  const cancelEditor = () => {
+    setShowEditor(false);
+  };
+
+  const saveEditor = () => {
+    if (!editorRef.current) {
+      setShowEditor(false);
+      return;
+    }
+    const html = editorRef.current.innerHTML || "";
+    if (contentRef.current) contentRef.current.innerHTML = html;
+    setContent(html);
+    setShowEditor(false);
+  };
+
   const handlePastePlain = (e) => {
     if (!e.clipboardData) return;
     e.preventDefault();
@@ -531,8 +706,7 @@ function App() {
     range.insertNode(frag);
     // Move caret to end of inserted content
     selection.collapseToEnd();
-    // Sync state with resulting HTML
-    setContent(e.currentTarget.innerHTML);
+    // Do not sync global content here; changes are applied on Save in the editor modal
   };
 
   React.useEffect(() => {
@@ -559,6 +733,22 @@ function App() {
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [togglePlayAndTimer]);
 
+  // Active when teleprompter is playing in script mode,
+  // or when the timer is running in timer-only mode.
+  const isActive = hasScript ? isPlaying : timerRunning;
+
+  // Compute full-screen timer font size when no script
+  const computeFullscreenTimerFontSize = React.useCallback(() => {
+    const baseW = 420;
+    const baseH = 200;
+    const w = window.innerWidth || baseW;
+    const h = window.innerHeight || baseH;
+    const factor = Math.min(w / baseW, h / baseH);
+    return Math.max(24, Math.round(timerFontSize * factor));
+  }, [timerFontSize]);
+
+  const isTimerFull = showTimer && !hasScript && !timerWindowOpen;
+
   return (
     <div>
       <nav className={expanded ? "expanded" : ""}>
@@ -574,7 +764,7 @@ function App() {
         </button>
         <button
           id="play-pause"
-          title="Play / Pause [Space]"
+          title={hasScript ? "Play / Pause [Space]" : "Start / Pause Timer [Space]"}
           onClick={togglePlayAndTimer}
         >
           <svg
@@ -582,7 +772,7 @@ function App() {
             xmlns="http://www.w3.org/2000/svg"
             height="40"
             width="40"
-            style={{ display: isPlaying ? "none" : "block" }}
+            style={{ display: isActive ? "none" : "block" }}
           >
             <path d="M13.333 31.583V8.25l18.334 11.667Zm2.792-11.666Zm0 6.625L26.5 19.917l-10.375-6.625Z" />
           </svg>
@@ -591,7 +781,7 @@ function App() {
             xmlns="http://www.w3.org/2000/svg"
             height="40"
             width="40"
-            style={{ display: isPlaying ? "block" : "none" }}
+            style={{ display: isActive ? "block" : "none" }}
           >
             <path d="M23.458 31.667V8.333H30v23.334Zm-13.458 0V8.333h6.542v23.334Z" />
           </svg>
@@ -658,12 +848,43 @@ function App() {
           Open
         </button>
         <button
+          id="export"
+          title="Export saved scripts to JSON"
+          onClick={exportScripts}
+          style={smallBtnStyle}
+        >
+          Export
+        </button>
+        <button
+          id="import"
+          title="Import scripts from JSON"
+          onClick={openImportPicker}
+          style={smallBtnStyle}
+        >
+          Import
+        </button>
+        <input
+          ref={importInputRef}
+          type="file"
+          accept="application/json,.json"
+          style={{ display: "none" }}
+          onChange={handleImportFile}
+        />
+        <button
           id="save"
           title="Save as named script"
           onClick={openSaveDialog}
           style={smallBtnStyle}
         >
           Save
+        </button>
+        <button
+          id="edit"
+          title="Edit script content"
+          onClick={openEditor}
+          style={smallBtnStyle}
+        >
+          Edit
         </button>
         <button
           id="clear"
@@ -678,6 +899,7 @@ function App() {
           className="nav-reveal-btn tp-btn"
           title={navHidden ? "Show Nav" : "Hide Nav"}
           onClick={() => setNavHidden((v) => !v)}
+          style={smallBtnStyle}
         >
           {navHidden ? "Show Nav" : "Hide Nav"}
         </button>
@@ -814,6 +1036,7 @@ function App() {
           className="nav-reveal-btn tp-btn"
           onClick={() => setNavHidden(false)}
           title="Show Nav"
+          style={smallBtnStyle}
         >
           Show Nav
         </button>
@@ -821,9 +1044,12 @@ function App() {
       {/* Timer displays */}
       {showTimer && !timerWindowOpen && (
         <div
-          className="timer-overlay"
+          className={`timer-overlay${isTimerFull ? " full" : ""}`}
           aria-live="polite"
-          style={{ fontSize: `${timerFontSize}px`, color: timerColor }}
+          style={{
+            fontSize: `${isTimerFull ? computeFullscreenTimerFontSize() : timerFontSize}px`,
+            color: timerColor,
+          }}
         >
           {formatTime(timerRemaining)}
         </div>
@@ -833,7 +1059,7 @@ function App() {
           <div
             className="popup-timer"
             aria-live="polite"
-            style={{ fontSize: `${timerFontSize}px`, color: timerColor }}
+            style={{ fontSize: `${computePopoutFontSize()}px`, color: timerColor }}
           >
             {formatTime(timerRemaining)}
           </div>
@@ -890,14 +1116,31 @@ function App() {
           </div>
         </div>
       )}
+      {showEditor && (
+        <div className="tp-modal" role="dialog" aria-modal="true">
+          <div className="tp-panel" style={{ maxWidth: "92vw" }}>
+            <div className="tp-panel-title">Edit Script</div>
+            <div
+              ref={editorRef}
+              className="tp-editor"
+              contentEditable
+              suppressContentEditableWarning
+              onPaste={handlePastePlain}
+            />
+            <div className="tp-row" style={{ marginTop: 12 }}>
+              <button className="tp-btn primary" onClick={saveEditor}>Save</button>
+              <button className="tp-btn" onClick={cancelEditor}>Cancel</button>
+            </div>
+          </div>
+        </div>
+      )}
       <div
         ref={contentRef}
         className={`content${flipX ? " flipx" : ""}${flipY ? " flipy" : ""}`}
         spellCheck="false"
-        contentEditable={!isPlaying}
+        contentEditable={false}
         suppressContentEditableWarning
-        onPaste={handlePastePlain}
-        onInput={(e) => setContent(e.currentTarget.innerHTML)}
+        onDoubleClick={openEditor}
       />
       <div
         id="triangle"

@@ -217,6 +217,22 @@
         flex-direction: column;
         gap: 8px;
       }
+      .tp-editor {
+        background: transparent;
+        color: var(--text-color);
+        border: 1px solid var(--text-color);
+        border-radius: 6px;
+        padding: 12px;
+        min-width: 70vw;
+        min-height: 40vh;
+        max-width: 86vw;
+        max-height: 60vh;
+        overflow: auto;
+        line-height: 1.8;
+        font-size: var(--text-size);
+        text-align: var(--align);
+        white-space: pre-wrap;
+      }
       .tp-panel-title {
         font-weight: 700;
         margin-bottom: 4px;
@@ -281,6 +297,19 @@
         border-radius: 0;
         z-index: 9;
         user-select: none;
+      }
+      .timer-overlay.full {
+        inset: 0;
+        top: 0;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        height: 100vh;
+        background: var(--bg-color);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0;
       }
       .timer-controls {
         display: inline-flex;
