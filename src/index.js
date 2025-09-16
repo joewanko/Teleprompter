@@ -43,6 +43,7 @@ function App() {
   const [navHidden, setNavHidden] = React.useState(
     localStorage.getItem("nav-hidden") === "true"
   );
+  const [isFullscreen, setIsFullscreen] = React.useState(false);
   
   // Wake lock for preventing sleep mode
   const wakeLockRef = React.useRef(null);
@@ -150,6 +151,16 @@ function App() {
   React.useEffect(() => {
     document.body.classList.toggle("noscroll", expanded);
   }, [expanded]);
+
+  // Track fullscreen changes
+  React.useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(!!document.fullscreenElement);
+    };
+    
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
+  }, []);
 
   // Calculate scroll amount based on speed
   const getScrollAmount = () => {
@@ -292,6 +303,20 @@ function App() {
 
   const handleExpand = () => {
     setExpanded((e) => !e);
+  };
+
+  const toggleFullscreen = async () => {
+    try {
+      if (!document.fullscreenElement) {
+        await document.documentElement.requestFullscreen();
+        setIsFullscreen(true);
+      } else {
+        await document.exitFullscreen();
+        setIsFullscreen(false);
+      }
+    } catch (err) {
+      console.log('Error toggling fullscreen:', err);
+    }
   };
 
   // Timer helpers
@@ -1040,6 +1065,15 @@ function App() {
         >
           {navHidden ? "Show Nav" : "Hide Nav"}
         </button>
+        <button
+          id="fullscreen"
+          className="tp-btn"
+          title={isFullscreen ? "Exit Fullscreen" : "Enter Fullscreen"}
+          onClick={toggleFullscreen}
+          style={smallBtnStyle}
+        >
+          {isFullscreen ? "Exit Fullscreen" : "Fullscreen"}
+        </button>
         {/* Teleprompter controls continue... */}
         <div className="drawer">
           <div>
@@ -1183,14 +1217,24 @@ function App() {
         </div>
       </nav>
       {navHidden && (
-        <button
-          className="nav-reveal-btn tp-btn"
-          onClick={() => setNavHidden(false)}
-          title="Show Nav"
-          style={smallBtnStyle}
-        >
-          Show Nav
-        </button>
+        <div style={{ position: "fixed", top: "8px", right: "8px", zIndex: 11, display: "flex", gap: "8px" }}>
+          <button
+            className="nav-reveal-btn tp-btn"
+            onClick={() => setNavHidden(false)}
+            title="Show Nav"
+            style={smallBtnStyle}
+          >
+            Show Nav
+          </button>
+          <button
+            className="tp-btn"
+            title={isFullscreen ? "Exit Fullscreen" : "Enter Fullscreen"}
+            onClick={toggleFullscreen}
+            style={smallBtnStyle}
+          >
+            {isFullscreen ? "Exit Fullscreen" : "Fullscreen"}
+          </button>
+        </div>
       )}
       {/* Timer displays */}
       {showTimer && !timerWindowOpen && (
