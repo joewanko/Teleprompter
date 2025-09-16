@@ -33,7 +33,7 @@ function App() {
     parseInt(localStorage.getItem("margin") || "5%", 10)
   );
   const [lineHeight, setLineHeight] = React.useState(
-    parseFloat(localStorage.getItem("line-height") || "1.8")
+    parseFloat(localStorage.getItem("line-height") || "1.5")
   );
   const [speed, setSpeed] = React.useState(
     parseInt(localStorage.getItem("speed") || "10", 10)
@@ -521,7 +521,7 @@ function App() {
     setTextColor(snap.textColor ?? "#ffffff");
     setTextSize(Number.isFinite(snap.textSize) ? snap.textSize : 58);
     setMargin(Number.isFinite(snap.margin) ? snap.margin : 5);
-    setLineHeight(Number.isFinite(snap.lineHeight) ? snap.lineHeight : 1.8);
+    setLineHeight(Number.isFinite(snap.lineHeight) ? snap.lineHeight : 1.5);
     setSpeed(Number.isFinite(snap.speed) ? snap.speed : 10);
     // Apply timer settings from script (defaulting to existing if absent)
     setShowTimer(typeof snap.showTimer === "boolean" ? snap.showTimer : showTimer);
