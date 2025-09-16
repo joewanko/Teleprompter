@@ -4,7 +4,7 @@ import { createPortal } from "react-dom";
 
 // Constants
 const SPEED_MAX = 20; // Maximum speed value for the slider (1-10 scale)
-const SPEED_MODIFIER = 8; // Controls how fast "really fast" actually is
+const SPEED_MODIFIER = 10; // Controls how fast "really fast" actually is
 const TARGET_FPS = 60; // Target frames per second for smooth scrolling
 
 function App() {
