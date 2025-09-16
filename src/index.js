@@ -43,6 +43,7 @@ function App() {
   const [navHidden, setNavHidden] = React.useState(
     localStorage.getItem("nav-hidden") === "true"
   );
+  const [navTemporarilyVisible, setNavTemporarilyVisible] = React.useState(false);
   const [isFullscreen, setIsFullscreen] = React.useState(false);
   
   // Wake lock for preventing sleep mode
@@ -77,6 +78,7 @@ function App() {
   const timeoutRef = React.useRef();
   const contentRef = React.useRef();
   const recorderRef = React.useRef();
+  const mouseTimeoutRef = React.useRef();
   const smallBtnStyle = {
     width: "auto",
     height: "32px",
@@ -146,11 +148,71 @@ function App() {
   }, [navHidden]);
 
   React.useEffect(() => {
+    document.body.classList.toggle("nav-temporarily-visible", navTemporarilyVisible);
+  }, [navTemporarilyVisible]);
+
+  React.useEffect(() => {
     document.body.classList.toggle("playing", isPlaying);
   }, [isPlaying]);
   React.useEffect(() => {
     document.body.classList.toggle("noscroll", expanded);
   }, [expanded]);
+
+  // Mouse movement detection for temporarily showing hidden navigation
+  React.useEffect(() => {
+    if (!navHidden) return; // Only activate when nav is hidden
+
+    let showTimeout;
+    
+    const handleMouseMove = () => {
+      // Clear existing timeouts
+      if (showTimeout) {
+        clearTimeout(showTimeout);
+      }
+      if (mouseTimeoutRef.current) {
+        clearTimeout(mouseTimeoutRef.current);
+      }
+      
+      // Add a small delay before showing to prevent flickering on small movements
+      showTimeout = setTimeout(() => {
+        setNavTemporarilyVisible(true);
+      }, 100);
+      
+      // Set timeout to hide nav after 2 seconds of no movement
+      mouseTimeoutRef.current = setTimeout(() => {
+        setNavTemporarilyVisible(false);
+      }, 2000);
+    };
+
+    const handleNavInteraction = () => {
+      // Hide nav immediately when user interacts with it
+      setNavTemporarilyVisible(false);
+      if (showTimeout) {
+        clearTimeout(showTimeout);
+      }
+      if (mouseTimeoutRef.current) {
+        clearTimeout(mouseTimeoutRef.current);
+      }
+    };
+
+    // Add event listeners
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('click', handleNavInteraction);
+    document.addEventListener('keydown', handleNavInteraction);
+    
+    // Cleanup
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('click', handleNavInteraction);
+      document.removeEventListener('keydown', handleNavInteraction);
+      if (showTimeout) {
+        clearTimeout(showTimeout);
+      }
+      if (mouseTimeoutRef.current) {
+        clearTimeout(mouseTimeoutRef.current);
+      }
+    };
+  }, [navHidden]);
 
   // Track fullscreen changes
   React.useEffect(() => {
@@ -436,6 +498,9 @@ function App() {
       releaseWakeLock(); // Release wake lock on unmount
       if (childWindowRef.current && !childWindowRef.current.closed) {
         childWindowRef.current.close();
+      }
+      if (mouseTimeoutRef.current) {
+        clearTimeout(mouseTimeoutRef.current);
       }
     };
   }, []);
