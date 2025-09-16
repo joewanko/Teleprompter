@@ -43,6 +43,9 @@ function App() {
   const [navHidden, setNavHidden] = React.useState(
     localStorage.getItem("nav-hidden") === "true"
   );
+  
+  // Wake lock for preventing sleep mode
+  const wakeLockRef = React.useRef(null);
 
   // Timer state
   // Default to showing the timer when no preference is stored yet
@@ -186,14 +189,44 @@ function App() {
     timeoutRef.current = setTimeout(scroll, getFrameDelay()); // 30 FPS
   };
 
+  // Wake lock functions to prevent sleep mode
+  const requestWakeLock = async () => {
+    if (!('wakeLock' in navigator)) return;
+    
+    try {
+      wakeLockRef.current = await navigator.wakeLock.request('screen');
+      wakeLockRef.current.addEventListener('release', () => {
+        wakeLockRef.current = null;
+      });
+    } catch (err) {
+      console.log('Wake lock request failed:', err);
+    }
+  };
+
+  const releaseWakeLock = async () => {
+    if (wakeLockRef.current) {
+      try {
+        await wakeLockRef.current.release();
+        wakeLockRef.current = null;
+      } catch (err) {
+        console.log('Wake lock release failed:', err);
+      }
+    }
+  };
+
   const play = () => {
     setIsPlaying(true);
+    requestWakeLock(); // Prevent sleep mode while playing
     timeoutRef.current = setTimeout(scroll, getFrameDelay()); // 30 FPS
   };
 
   const pause = () => {
     setIsPlaying(false);
     clearTimeout(timeoutRef.current);
+    // Only release wake lock if timer is also not running
+    if (!timerRunning) {
+      releaseWakeLock();
+    }
   };
 
   const handlePlayPause = () => {
@@ -282,6 +315,7 @@ function App() {
   const startTimer = () => {
     if (timerRunning) return;
     setTimerRunning(true);
+    requestWakeLock(); // Prevent sleep mode while timer is running
     const start = Date.now();
     const baseRemaining = timerRemaining;
     timerStartRef.current = start;
@@ -297,6 +331,10 @@ function App() {
     if (!timerRunning) return;
     setTimerRunning(false);
     stopTimerInterval();
+    // Only release wake lock if teleprompter is also not playing
+    if (!isPlaying) {
+      releaseWakeLock();
+    }
   };
 
   const resetTimer = () => {
@@ -370,6 +408,7 @@ function App() {
   React.useEffect(() => {
     return () => {
       stopTimerInterval();
+      releaseWakeLock(); // Release wake lock on unmount
       if (childWindowRef.current && !childWindowRef.current.closed) {
         childWindowRef.current.close();
       }
@@ -685,6 +724,15 @@ function App() {
     if (currentScriptName === name) setCurrentScriptName("");
   };
 
+  const deleteAllScripts = () => {
+    const scriptCount = Object.keys(scripts).length;
+    if (scriptCount === 0) return;
+    if (!window.confirm(`Delete all ${scriptCount} script(s)? This cannot be undone.`)) return;
+    setScripts({});
+    localStorage.setItem(scriptsKey, JSON.stringify({}));
+    setCurrentScriptName("");
+  };
+
   const handleClear = () => {
     pause();
     pauseTimer();
@@ -761,6 +809,17 @@ function App() {
       
       // Check if we're in the editor modal
       const isInEditor = ae && ae.closest('.tp-modal') && ae.closest('.tp-editor');
+      
+      // Handle escape key to exit fullscreen
+      if (e.code === "Escape") {
+        if (document.fullscreenElement) {
+          e.preventDefault();
+          document.exitFullscreen().catch(err => {
+            console.log('Error exiting fullscreen:', err);
+          });
+        }
+        return;
+      }
       
       // Allow space bar play/pause everywhere except in the editor
       if (e.code === "Space") {
@@ -1186,7 +1245,7 @@ function App() {
                 <div className="tp-empty">No saved scripts yet.</div>
               )}
               {Object.values(scripts)
-                .sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0))
+                .sort((a, b) => a.name.localeCompare(b.name))
                 .map((s) => (
                   <div key={s.name} className="tp-row" role="listitem">
                     <div className="tp-col">
@@ -1204,6 +1263,9 @@ function App() {
             </div>
             <div className="tp-row" style={{ marginTop: 8 }}>
               <button className="tp-btn" onClick={() => setShowOpenDialog(false)}>Close</button>
+              {Object.keys(scripts).length > 0 && (
+                <button className="tp-btn danger" onClick={deleteAllScripts}>Delete All</button>
+              )}
             </div>
           </div>
         </div>
