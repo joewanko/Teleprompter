@@ -36,7 +36,7 @@ function App() {
     parseFloat(localStorage.getItem("line-height") || "1.5")
   );
   const [speed, setSpeed] = React.useState(
-    parseInt(localStorage.getItem("speed") || "10", 10)
+    parseInt(localStorage.getItem("speed") || "3", 10)
   );
   const [isPlaying, setIsPlaying] = React.useState(false);
   const [expanded, setExpanded] = React.useState(false);
@@ -316,8 +316,20 @@ function App() {
   };
 
   const setTimerFromInput = (value) => {
-    // value expected as MM:SS or M:SS (allow leading '+')
+    // value expected as MM:SS, M:SS, or single digit (minutes)
     value = String(value || "").trim().replace(/^\+/, "");
+    
+    // Handle single digit input (treat as minutes)
+    if (/^\d+$/.test(value)) {
+      const mins = parseInt(value, 10);
+      if (!Number.isFinite(mins)) return;
+      const total = Math.max(0, mins * 60);
+      setTimerDuration(total);
+      setTimerRemaining(total);
+      return;
+    }
+    
+    // Handle MM:SS or M:SS format
     const m = value.split(":");
     if (m.length !== 2) return;
     const mins = parseInt(m[0], 10);
@@ -331,6 +343,15 @@ function App() {
   const parseTimerString = (value) => {
     // Returns seconds when valid, otherwise undefined
     value = String(value || "").trim().replace(/^\+/, "");
+    
+    // Handle single digit input (treat as minutes)
+    if (/^\d+$/.test(value)) {
+      const mins = parseInt(value, 10);
+      if (!Number.isFinite(mins)) return undefined;
+      return Math.max(0, mins * 60);
+    }
+    
+    // Handle MM:SS or M:SS format
     const parts = value.split(":");
     if (parts.length !== 2) return undefined;
     const mins = parseInt(parts[0], 10);
@@ -522,7 +543,7 @@ function App() {
     setTextSize(Number.isFinite(snap.textSize) ? snap.textSize : 58);
     setMargin(Number.isFinite(snap.margin) ? snap.margin : 5);
     setLineHeight(Number.isFinite(snap.lineHeight) ? snap.lineHeight : 1.5);
-    setSpeed(Number.isFinite(snap.speed) ? snap.speed : 10);
+    setSpeed(Number.isFinite(snap.speed) ? snap.speed : 3);
     // Apply timer settings from script (defaulting to existing if absent)
     setShowTimer(typeof snap.showTimer === "boolean" ? snap.showTimer : showTimer);
     const duration = Number.isFinite(snap.timerDuration) ? snap.timerDuration : timerDuration;
