@@ -1217,24 +1217,14 @@ function App() {
         </div>
       </nav>
       {navHidden && (
-        <div style={{ position: "fixed", top: "8px", right: "8px", zIndex: 11, display: "flex", gap: "8px" }}>
-          <button
-            className="nav-reveal-btn tp-btn"
-            onClick={() => setNavHidden(false)}
-            title="Show Nav"
-            style={smallBtnStyle}
-          >
-            Show Nav
-          </button>
-          <button
-            className="tp-btn"
-            title={isFullscreen ? "Exit Fullscreen" : "Enter Fullscreen"}
-            onClick={toggleFullscreen}
-            style={smallBtnStyle}
-          >
-            {isFullscreen ? "Exit Fullscreen" : "Fullscreen"}
-          </button>
-        </div>
+        <button
+          className="nav-reveal-btn tp-btn"
+          onClick={() => setNavHidden(false)}
+          title="Show Nav"
+          style={smallBtnStyle}
+        >
+          Show Nav
+        </button>
       )}
       {/* Timer displays */}
       {showTimer && !timerWindowOpen && (
