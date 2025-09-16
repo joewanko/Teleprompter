@@ -10,6 +10,7 @@
         --text-color: #ffffff;
         --text-size: 58px;
         --margin: 5%;
+        --line-height: 1.8;
         --align: left;
       }
       * {
@@ -72,7 +73,7 @@
       }
       .content {
         color: var(--text-color);
-        line-height: 1.8;
+        line-height: var(--line-height);
         font-size: var(--text-size);
         padding-left: var(--margin);
         padding-right: var(--margin);
@@ -235,7 +236,7 @@
         max-width: 86vw;
         max-height: 60vh;
         overflow: auto;
-        line-height: 1.8;
+        line-height: var(--line-height);
         font-size: var(--text-size);
         text-align: var(--align);
         white-space: pre-wrap;

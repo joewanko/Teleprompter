@@ -32,6 +32,9 @@ function App() {
   const [margin, setMargin] = React.useState(
     parseInt(localStorage.getItem("margin") || "5%", 10)
   );
+  const [lineHeight, setLineHeight] = React.useState(
+    parseFloat(localStorage.getItem("line-height") || "1.8")
+  );
   const [speed, setSpeed] = React.useState(
     parseInt(localStorage.getItem("speed") || "10", 10)
   );
@@ -94,8 +97,9 @@ function App() {
     root.style.setProperty("--text-color", textColor);
     root.style.setProperty("--text-size", textSize + "px");
     root.style.setProperty("--margin", margin + "%");
+    root.style.setProperty("--line-height", lineHeight);
     root.style.setProperty("--align", align);
-  }, [bgColor, textColor, textSize, margin, align]);
+  }, [bgColor, textColor, textSize, margin, lineHeight, align]);
 
   React.useEffect(() => {
     // Persist commonly changed settings in one place
@@ -107,6 +111,7 @@ function App() {
     localStorage.setItem("text-color", textColor);
     localStorage.setItem("text-size", textSize + "px");
     localStorage.setItem("margin", margin + "%");
+    localStorage.setItem("line-height", lineHeight);
     localStorage.setItem("speed", speed);
     localStorage.setItem("timer-show", showTimer);
     localStorage.setItem("timer-duration", String(timerDuration));
@@ -124,6 +129,7 @@ function App() {
     textColor,
     textSize,
     margin,
+    lineHeight,
     speed,
     showTimer,
     timerDuration,
@@ -490,6 +496,7 @@ function App() {
       textColor,
       textSize,
       margin,
+      lineHeight,
       speed,
       // Timer settings saved per script
       showTimer,
@@ -514,6 +521,7 @@ function App() {
     setTextColor(snap.textColor ?? "#ffffff");
     setTextSize(Number.isFinite(snap.textSize) ? snap.textSize : 58);
     setMargin(Number.isFinite(snap.margin) ? snap.margin : 5);
+    setLineHeight(Number.isFinite(snap.lineHeight) ? snap.lineHeight : 1.8);
     setSpeed(Number.isFinite(snap.speed) ? snap.speed : 10);
     // Apply timer settings from script (defaulting to existing if absent)
     setShowTimer(typeof snap.showTimer === "boolean" ? snap.showTimer : showTimer);
@@ -986,6 +994,20 @@ function App() {
             />
             <div className="disable-select">
               Margin: <span id="margin-display">{margin}</span>%
+            </div>
+          </div>
+          <div>
+            <input
+              id="line-height"
+              type="range"
+              min="1.0"
+              max="3.0"
+              step="0.1"
+              value={lineHeight}
+              onChange={(e) => setLineHeight(parseFloat(e.target.value))}
+            />
+            <div className="disable-select">
+              Line height: <span id="line-height-display">{lineHeight}</span>
             </div>
           </div>
           <div>
