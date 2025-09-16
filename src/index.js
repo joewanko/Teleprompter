@@ -787,10 +787,10 @@ function App() {
         return;
       }
       
-      if (e.code === "ArrowDown") {
+      if (e.code === "ArrowDown" || e.code === "Minus") {
         e.preventDefault();
         setSpeed((s) => Math.max(1, s - 1));
-      } else if (e.code === "ArrowUp") {
+      } else if (e.code === "ArrowUp" || e.code === "Equal") {
         e.preventDefault();
         setSpeed((s) => Math.min(SPEED_MAX, s + 1));
       }
@@ -898,6 +898,24 @@ function App() {
             width="40"
           >
             <path d="M 5 15.875 L 5 7.792 C 5 7.042 5.278 6.389 5.833 5.833 C 6.389 5.278 7.042 5 7.792 5 L 32.208 5 C 32.958 5 33.611 5.278 34.167 5.833 C 34.722 6.389 35 7.042 35 7.792 L 35 15.875 L 32.208 15.875 L 32.208 7.792 L 7.792 7.792 L 7.792 15.875 L 5 15.875 Z M 1.667 18.667 L 38.333 18.667 L 38.333 21.458 L 1.667 21.458 L 1.667 18.667 Z M 32.208 32.208 L 32.208 31.833 L 35 31.833 L 35 32.208 C 35 32.958 34.722 33.611 34.167 34.167 C 33.611 34.722 32.958 35 32.208 35 L 31.833 35 L 31.833 32.208 L 32.208 32.208 Z M 17.917 32.208 L 22.083 32.208 L 22.083 35 L 17.917 35 L 17.917 32.208 Z M 5 32.208 L 5 31.833 L 7.792 31.833 L 7.792 32.208 L 8.167 32.208 L 8.167 35 L 7.792 35 C 7.042 35 6.389 34.722 5.833 34.167 C 5.278 33.611 5 32.958 5 32.208 Z M 24.875 32.208 L 29.042 32.208 L 29.042 35 L 24.875 35 L 24.875 32.208 Z M 10.958 32.208 L 15.125 32.208 L 15.125 35 L 10.958 35 L 10.958 32.208 Z M 5 24.208 L 7.792 24.208 L 7.792 29.042 L 5 29.042 L 5 24.208 Z M 32.208 24.208 L 35 24.208 L 35 29.042 L 32.208 29.042 L 32.208 24.208 Z" />
+          </svg>
+        </button>
+        <button
+          id="speed-decrease"
+          title="Decrease speed [-]"
+          onClick={() => setSpeed((s) => Math.max(1, s - 1))}
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" height="40" width="40" viewBox="0 0 24 24">
+            <path d="M19 13H5v-2h14v2z" />
+          </svg>
+        </button>
+        <button
+          id="speed-increase"
+          title="Increase speed [+]"
+          onClick={() => setSpeed((s) => Math.min(SPEED_MAX, s + 1))}
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" height="40" width="40" viewBox="0 0 24 24">
+            <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z" />
           </svg>
         </button>
         <button id="expand" title="Expand" onClick={handleExpand}>
