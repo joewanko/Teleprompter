@@ -2,6 +2,11 @@ import React from "react";
 import { createRoot } from "react-dom/client";
 import { createPortal } from "react-dom";
 
+// Constants
+const SPEED_MAX = 20; // Maximum speed value for the slider (1-10 scale)
+const SPEED_MODIFIER = 8; // Controls how fast "really fast" actually is
+const TARGET_FPS = 60; // Target frames per second for smooth scrolling
+
 function App() {
   const [content, setContent] = React.useState(
     localStorage.getItem("content") || ""
@@ -137,10 +142,28 @@ function App() {
     document.body.classList.toggle("noscroll", expanded);
   }, [expanded]);
 
+  // Calculate scroll amount based on speed
+  const getScrollAmount = () => {
+    // Speed 1 = 1 pixel per frame
+    // Speed 10 = line height per frame
+    const lineHeight = textSize * 1.2; // Approximate line height
+    const pixelsPerSpeed = lineHeight / SPEED_MODIFIER / SPEED_MAX; // Pixels per speed unit
+    
+    return Math.max(1, Math.round(speed * pixelsPerSpeed));
+  };
+
+  // Calculate frame delay for target FPS
+  const getFrameDelay = () => {
+    return 1000 / TARGET_FPS; // Convert FPS to milliseconds
+  };
+
   const scroll = () => {
     if (!isPlaying) return;
+    
+    const scrollAmount = getScrollAmount();
+    
     if (flipY) {
-      window.scrollBy(0, -1);
+      window.scrollBy(0, -scrollAmount);
       if (window.scrollY === 0) {
         pause();
         pauseTimer();
@@ -152,7 +175,7 @@ function App() {
         return;
       }
     } else {
-      window.scrollBy(0, 1);
+      window.scrollBy(0, scrollAmount);
       if (window.scrollY + window.innerHeight >= document.body.scrollHeight) {
         pause();
         pauseTimer();
@@ -160,12 +183,12 @@ function App() {
         return;
       }
     }
-    timeoutRef.current = setTimeout(scroll, 50 - speed);
+    timeoutRef.current = setTimeout(scroll, getFrameDelay()); // 30 FPS
   };
 
   const play = () => {
     setIsPlaying(true);
-    timeoutRef.current = setTimeout(scroll, 50 - speed);
+    timeoutRef.current = setTimeout(scroll, getFrameDelay()); // 30 FPS
   };
 
   const pause = () => {
@@ -209,7 +232,7 @@ function App() {
   React.useEffect(() => {
     if (isPlaying) {
       clearTimeout(timeoutRef.current);
-      timeoutRef.current = setTimeout(scroll, 50 - speed);
+      timeoutRef.current = setTimeout(scroll, getFrameDelay()); // 30 FPS
     }
   }, [speed, isPlaying]);
 
@@ -726,7 +749,7 @@ function App() {
         setSpeed((s) => Math.max(1, s - 1));
       } else if (e.code === "ArrowUp") {
         e.preventDefault();
-        setSpeed((s) => Math.min(50, s + 1));
+        setSpeed((s) => Math.min(SPEED_MAX, s + 1));
       }
     };
     window.addEventListener("keydown", onKeyDown);
@@ -956,7 +979,7 @@ function App() {
               id="speed"
               type="range"
               min="1"
-              max="50"
+              max={SPEED_MAX}
               value={speed}
               step="1"
               onChange={(e) => setSpeed(parseInt(e.target.value, 10))}
