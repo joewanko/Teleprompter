@@ -735,16 +735,30 @@ function App() {
   React.useEffect(() => {
     const onKeyDown = (e) => {
       const ae = document.activeElement;
+      
+      // Check if we're in the editor modal
+      const isInEditor = ae && ae.closest('.tp-modal') && ae.closest('.tp-editor');
+      
+      // Allow space bar play/pause everywhere except in the editor
+      if (e.code === "Space") {
+        if (isInEditor) {
+          // Don't prevent default in editor - let spaces work normally
+          return;
+        }
+        e.preventDefault();
+        togglePlayAndTimer();
+        return;
+      }
+      
+      // For other keys, use the original logic
       if (
         ae === contentRef.current ||
         (ae && (ae.isContentEditable || ["INPUT","TEXTAREA","SELECT","BUTTON"].includes(ae.tagName)))
       ) {
         return;
       }
-      if (e.code === "Space") {
-        e.preventDefault();
-        togglePlayAndTimer();
-      } else if (e.code === "ArrowDown") {
+      
+      if (e.code === "ArrowDown") {
         e.preventDefault();
         setSpeed((s) => Math.max(1, s - 1));
       } else if (e.code === "ArrowUp") {
