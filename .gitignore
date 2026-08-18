@@ -1,2 +1,45 @@
 node_modules/
 docs/
+
+# --- appended at archive ---
+# --- macOS ---
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon?
+
+# --- Secrets / credentials: never commit ---
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*credentials*
+.meeting-bots-tokens.jsonl
+*.tokens.jsonl
+
+# --- Agent / tooling state (machine-local, regenerable) ---
+.omc/
+.claude/settings.local.json
+.vscode/
+.idea/
+
+# --- Dependencies & build output ---
+node_modules/
+.venv/
+venv/
+__pycache__/
+*.pyc
+dist/
+build/
+target/
+.next/
+.turbo/
+*.log
+
+# --- Local databases & large binaries (back these up out-of-band) ---
+*.db
+*.db-wal
+*.db-shm
+*.sqlite
+*.sqlite3
